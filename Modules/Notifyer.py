@@ -9,8 +9,10 @@ from PySide6.QtCore import Qt
 from Utils.NLUtils import NLLogger,ConColors
 
 class Notifyer(QWidget):
-    def __init__(self):
+    def __init__(self,production:bool,):
         super().__init__(parent=None)
+        self.Logger = NLLogger(production,'ProccesNotifyer')
+        self.Logger.Info('Started',ConColors.G,False)
         self.setFixedHeight(40)
         self.setObjectName('NotifyerPanel')
         self.mainLayout = QHBoxLayout(self)

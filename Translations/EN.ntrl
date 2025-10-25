@@ -1,0 +1,14 @@
+{
+    "ActionMenu_OpenWith": "Open with...",
+    "ActionMenu_Cut": "Cut",
+    "ActionMenu_Copy": "Copy",
+    "ActionMenu_Paste": "Paste",
+    "ActionMenu_CopyTo": "Copy to...",
+    "ActionMenu_MoveTo": "Move to...",
+    "ActionMenu_Rename": "Rename",
+    "ActionMenu_MoveToTrash": "Move to trash",
+    "ActionMenu_RemovePermamently": "Remove permamently",
+    "ActionMenu_OpenWithTerminal": "Open with terminal",
+    "ActionMenu_Pack": "Pack",
+    "ActionMenu_Params": "Params"
+}

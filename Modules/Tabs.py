@@ -5,11 +5,20 @@
 import sys,os
 sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from PySide6.QtWidgets import QMainWindow, QWidget,QSizePolicy,QHBoxLayout,QFileSystemModel,QListView,QVBoxLayout,QTableView,QLineEdit
-from PySide6.QtCore import QDir
+from PySide6.QtCore import QDir, Qt
+from Utils.NLUtils import ConColors,NLLogger,NLTranslator
+from Modules.PathEntry import PathEntry
+from Modules.Menus import ActionMenu
+from Modules.Views import ListView
 
 class FileViewer(QWidget):
-    def __init__(self,FSM:QFileSystemModel,PathEntry:QLineEdit):
+    def __init__(self,production,name:str,FSM:QFileSystemModel,PathEntry:PathEntry,translator:NLTranslator):
         super().__init__(parent=None)
+        self.Logger = NLLogger(production,'FileTab'+name)
+        self.Logger.Info('Started',ConColors.G,False)
+
+        self.AM = ActionMenu(self,translator)
+
         self.mainLayout = QVBoxLayout(self)
         self.mainLayout.setContentsMargins(0,0,0,0)
         self.mainLayout.setSpacing(0)
@@ -17,34 +26,26 @@ class FileViewer(QWidget):
         self.FSModel = FSM
         self.TabSetup()
 
+    def ExecMenu(self,pos):
+        self.AM.exec_(self.mapToGlobal(pos))
+
     def TabSetup(self):
-        self.listView = QTableView()
-        self.listView.setModel(self.FSModel)
-
-        self.listView.setShowGrid(False)
-        self.listView.verticalHeader().setVisible(False)
-
-        self.listView.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
-        self.listView.setSizePolicy(
-            QSizePolicy.Policy.Expanding, 
-            QSizePolicy.Policy.Expanding
-        )
-        self.listView.setRootIndex(self.FSModel.index(QDir.homePath()))
-        
+        self.listView = ListView(self.FSModel)
         self.mainLayout.addWidget(self.listView)
+        self.listView.doubleClicked.connect(self.Update)
+        self.listView.customContextMenuRequested.connect(self.ExecMenu)
+        
+        
 
-        self.listView.doubleClicked.connect(self._changeDirectory)
-
-    def Update(self):
-        path = self.FSModel.filePath(self.listView.rootIndex())
-        self.PE.setText(str(path))
+    def Update(self, index):
+        path = self.FSModel.filePath(index)
+        self.PE.UpdateTab(path)
         print(path)
 
     def ChangeDirectory(self,path):
         self._changeDirectory(self.FSModel.index(path))
+
     def _changeDirectory(self,index):
         if self.FSModel.isDir(index):
             self.listView.setRootIndex(index)
-        self.Update()
-        #else:
-            #self.
+        

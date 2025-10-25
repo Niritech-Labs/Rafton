@@ -3,10 +3,11 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 import sys,os
-from PySide6.QtWidgets import QMainWindow, QWidget,QSizePolicy,QHBoxLayout,QFileSystemModel,QTreeView,QApplication,QVBoxLayout,QTabWidget,QLineEdit
-from PySide6.QtCore import QDir
-from Utils.NLUtils import ConColors,ConfigManager,NLLogger
+from PySide6.QtWidgets import QMainWindow, QWidget,QSizePolicy,QHBoxLayout,QTreeView,QApplication,QVBoxLayout,QTabWidget,QLineEdit
+from PySide6.QtCore import QDir, Qt
+from Utils.NLUtils import ConColors,NLTranslator,NLLogger
 from Modules.Tabs import FileViewer
+from Modules.PathEntry import PathEntry
 from Modules.FSModel import NL_RFileSystemModel
 from Modules.ProcessDaemon import ProcessDaemon
 os.environ['QT_QPA_PLATFORMTHEME'] = 'gtk3'
@@ -37,9 +38,11 @@ class Rafton(QMainWindow):
         self.SetupGUI()
 
     def PreSetup(self):
+        self.Translator = NLTranslator(self.production,'Config')
+
         self.ProcessDaemon = ProcessDaemon(self.rootLayout,self.production)
 
-        self.pathEntry = QLineEdit()
+        self.pathEntry = PathEntry(self.currentTab)
 
         self.FSModel = NL_RFileSystemModel(self.ProcessDaemon,self.production)
         self.FSModel.setRootPath(QDir.rootPath())
@@ -66,6 +69,7 @@ class Rafton(QMainWindow):
         self.QTabManager.addTab(self.fileview,'Filewiew')
         self.currentTab = self.fileview
         self.QTabManager.currentChanged.connect(self.TabChanged)
+        self.pathEntry.CT = self.currentTab
 
         
 
@@ -86,12 +90,18 @@ class Rafton(QMainWindow):
         self.treeView.hideColumn(3)
         self.treeView.setRootIndex(self.FSModel.index(QDir.rootPath()))
         self.treeView.clicked.connect(self.FolderChoosed)
+        self.treeView.setDragEnabled(True)
+        self.treeView.setAcceptDrops(True)
+        self.treeView.setDropIndicatorShown(True)
+        self.treeView.setDragDropMode(QTreeView.DragDrop)
+        self.treeView.setDragDropOverwriteMode(False)
+        self.treeView.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.LeftIerarchPanelLayout.addWidget(self.treeView)
 
 
 
     def InitModules(self):
-        self.fileview = FileViewer(self.FSModel,self.pathEntry)
+        self.fileview = FileViewer(self.production,'main',self.FSModel,self.pathEntry,self.Translator)
 
     def TabChanged(self,index):
         self.currentTab = self.QTabManager.widget(index)

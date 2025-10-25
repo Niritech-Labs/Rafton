@@ -4,16 +4,32 @@
 # the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 import sys,os
 sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from PySide6.QtWidgets import QLineEdit
-from Modules.Tabs import FileViewer
+from PySide6.QtWidgets import QLineEdit,QFileSystemModel
+#from Modules.Tabs import FileViewer
+from queue import LifoQueue
+class FileViewer:
+    def __init__(self):
+        self.FSModel = QFileSystemModel()
+    def ChangeDirectory(self,text):
+        pass
+
+
 
 class PathEntry(QLineEdit):
-    def __init__(self,currentTab:FileViewer):
-        super.__init__()
+    def __init__(self,currentTab:FileViewer,):
+        super().__init__(parent=None)
         self.CT = currentTab
 
-        self.textEdited.connect(self.UpdateTab)
+        self.listQueue = LifoQueue(100)
 
-    def UpdateTab(self,inf):
-        self.CT.ChangeDirectory(self.text())
+        self.editingFinished.connect(lambda:self.UpdateTab(self.text()))
+
+    def UpdateTab(self,text:str):
+        text = os.path.normpath(text)
+        while text and not os.path.exists(text):
+            text = os.path.dirname(text)
+
+        self.setText(text)
+        self.listQueue.put(text)
+        self.CT.ChangeDirectory(text)
 

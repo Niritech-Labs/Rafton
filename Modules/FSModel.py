@@ -5,7 +5,7 @@
 import sys,os
 sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from PySide6.QtWidgets import QFileSystemModel,QMessageBox
-from PySide6.QtCore import QModelIndex,Qt,QDir
+from PySide6.QtCore import QModelIndex,Qt,QDir,QUrl
 from Modules.ProcessDaemon import ProcessDaemon
 from Utils.NLUtils import NLLogger,ConColors
 class NL_RFileSystemModel(QFileSystemModel):
@@ -18,50 +18,66 @@ class NL_RFileSystemModel(QFileSystemModel):
     
     def flags(self, index):
         default_flags = super().flags(index)
-        if index.isValid():
-            return default_flags | Qt.ItemIsDragEnabled
+        if not index.isValid():
+            return default_flags | Qt.ItemFlag.ItemIsDropEnabled
+    
+        if self.isDir(index):
+            return default_flags | Qt.ItemFlag.ItemIsDragEnabled | Qt.ItemFlag.ItemIsDropEnabled
         else:
-            return default_flags | Qt.ItemIsDropEnabled
+            return default_flags | Qt.ItemFlag.ItemIsDragEnabled
     
     def mimeTypes(self):
-        return ['text/uri-list', 'application/x-qabstractitemmodeldatalist']
-    
+        return ['text/uri-list', 'text/plain', 'application/x-qabstractitemmodeldatalist']
+
     def mimeData(self, indexes):
-        mimeData = super().mimeData(indexes)
-        
-        # Добавляем пути файлов в MIME данные
+        mime_data = super().mimeData(indexes)
         urls = []
+        file_paths = []
+    
         for index in indexes:
-            if index.column() == 0:  # Только первый столбец
+            if index.column() == 0:  
                 file_path = self.filePath(index)
-                urls.append(file_path)
-        
-        # Сохраняем пути как текст
-        mimeData.setText('\n'.join(urls))
-        return mimeData
+                if file_path:
+                    file_paths.append(file_path)
+                    urls.append(QUrl.fromLocalFile(file_path))
+
+        mime_data.setUrls(urls)
+        mime_data.setText('\n'.join(file_paths))
     
+        return mime_data
+
     def canDropMimeData(self, data, action, row, column, parent):
-        if not parent.isValid():
-            return False
-        return data.hasText() or data.hasUrls()
-    
+        if data.hasUrls() or data.hasText():
+            if parent.isValid() and self.isDir(parent):
+                return True
+        return False
+
     def dropMimeData(self, data, action, row, column, parent):
         if not parent.isValid():
             return False
-        
-        targetPath = self.filePath(parent)
-        if not os.path.isdir(targetPath):
+    
+        target_path = self.filePath(parent)
+        if not self.isDir(parent):
             return False
-        
-        # Получаем список исходных файлов
-        srcPaths = []
-        if data.hasText():
-            srcPaths = data.text().split('\n')
-        elif data.hasUrls():
-            srcPaths = [url.toLocalFile() for url in data.urls()]
-        
-        srcPaths = [path for path in srcPaths if path.strip()]
-        return self.FileOperationManager(srcPaths, targetPath, action)
+
+        src_paths = []
+
+        if data.hasUrls():
+            for url in data.urls():
+                if url.isLocalFile():
+                    src_paths.append(url.toLocalFile())
+    
+        elif data.hasText():
+            paths = data.text().split('\n')
+            for path in paths:
+                path = path.strip()
+                if path and (path.startswith('/') or ':' in path): 
+                    src_paths.append(path)
+    
+        if not src_paths:
+            return False
+    
+        return self.FileOperationManager(src_paths, target_path, action)
     
     def FileOperationManager(self, srcPaths, targetPath, action):
         try:
@@ -71,11 +87,11 @@ class NL_RFileSystemModel(QFileSystemModel):
                 
                 target_file_path = os.path.join(targetPath, os.path.basename(srcPath))
                 
-                if action == Qt.MoveAction:
+                if action == Qt.DropAction.MoveAction:
                     self.MoveFile(srcPath, target_file_path)
-                elif action == Qt.CopyAction:
+                elif action == Qt.DropAction.CopyAction:
                     self.CopyFile(srcPath, target_file_path)
-                elif action == Qt.LinkAction:
+                elif action == Qt.DropAction.LinkAction:
                     self.CreateLink(srcPath, target_file_path)
             
             # Обновляем модель
@@ -99,7 +115,7 @@ class NL_RFileSystemModel(QFileSystemModel):
             if response == QMessageBox.No:
                 return
         
-        self.PD.AddInQueue(action=Qt.MoveAction,src=source,target=target)
+        self.PD.AddInQueue(action=Qt.DropAction.MoveAction,src=source,target=target)
     
     def CopyFile(self, source, target):
         if os.path.exists(target):
@@ -112,12 +128,12 @@ class NL_RFileSystemModel(QFileSystemModel):
             if response == QMessageBox.No:
                 return
         
-        self.PD.AddInQueue(action=Qt.LinkAction,src=source,target=target)
+        self.PD.AddInQueue(action=Qt.DropAction.CopyAction,src=source,target=target)
         
     
     def CreateLink(self, source, target):    
         if os.path.exists(target):
             os.remove(target)
         
-        self.PD.AddInQueue(action=Qt.CopyAction,src=source,target=target)
+        self.PD.AddInQueue(action=Qt.DropAction.LinkAction,src=source,target=target)
             #os.symlink(source, target)

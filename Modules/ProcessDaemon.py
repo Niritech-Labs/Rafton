@@ -14,11 +14,12 @@ class ProcessDaemon:
         self.Logger = NLLogger(False,"Process Daemon")
         self.Logger.Info('Started',ConColors.G,production)
 
-        self.notifyer = Notifyer()
+        self.notifyer = Notifyer(production)
 
         NotifyerLayout.addWidget(self.notifyer)
 
-    def AddInQueue(action,src:str,target:str=None):
-        pass
+    def AddInQueue(self,action:Qt.DropAction,src:str,target:str=None):
+        self.Logger.Info(f'operation {str(action)}',ConColors.Y,False)
+        self.notifyer.cursorFile.setText('bbbbbbbbb')
 
    
